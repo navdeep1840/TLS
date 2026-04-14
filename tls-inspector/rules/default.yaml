@@ -1,0 +1,149 @@
+rules:
+  - id: aws-access-key
+    name: AWS Access Key
+    description: Detects AWS access key patterns
+    severity: critical
+    enabled: true
+    regex:
+      - 'AKIA[0-9A-Z]{16}'
+    keywords:
+      - AWS_ACCESS_KEY_ID
+      - aws_access_key
+
+  - id: aws-secret-key
+    name: AWS Secret Key
+    description: Detects AWS secret access key patterns
+    severity: critical
+    enabled: true
+    regex:
+      - '[A-Za-z0-9/+=]{40}'
+    keywords:
+      - AWS_SECRET_ACCESS_KEY
+      - aws_secret_key
+
+  - id: gcp-api-key
+    name: GCP API Key
+    description: Detects Google Cloud Platform API keys
+    severity: high
+    enabled: true
+    regex:
+      - 'AIza[0-9A-Za-z\\-_]{35}'
+    keywords:
+      - GCLOUD_API_KEY
+      - GCP_API_KEY
+
+  - id: azure-client-secret
+    name: Azure Client Secret
+    description: Detects Azure client secrets
+    severity: high
+    enabled: true
+    keywords:
+      - AZURE_CLIENT_SECRET
+      - azure_client_secret
+      - client_secret
+
+  - id: github-token
+    name: GitHub Token
+    description: Detects GitHub personal access tokens
+    severity: critical
+    enabled: true
+    regex:
+      - 'ghp_[a-zA-Z0-9]{36}'
+      - 'gho_[a-zA-Z0-9]{36}'
+      - 'ghu_[a-zA-Z0-9]{36}'
+      - 'ghs_[a-zA-Z0-9]{36}'
+      - 'ghr_[a-zA-Z0-9]{36}'
+      - 'github_pat_[a-zA-Z0-9_]{82}'
+
+  - id: gitlab-token
+    name: GitLab Token
+    description: Detects GitLab personal access tokens
+    severity: high
+    enabled: true
+    regex:
+      - 'glpat-[a-zA-Z0-9\\-_]{20}'
+    keywords:
+      - GITLAB_TOKEN
+
+  - id: jwt-token
+    name: JWT Token
+    description: Detects JSON Web Tokens
+    severity: medium
+    enabled: true
+    regex:
+      - 'eyJ[a-zA-Z0-9_-]*\\.eyJ[a-zA-Z0-9_-]*\\.[a-zA-Z0-9_-]*'
+    keywords:
+      - Bearer
+      - Authorization
+
+  - id: generic-api-key
+    name: Generic API Key
+    description: Detects generic API key patterns
+    severity: medium
+    enabled: true
+    regex:
+      - '[aA][pP][iI][-_]?[kK][eE][yY].*[=:]\\s*["\']?[a-zA-Z0-9]{20,}'
+      - 'api[-_]?token.*[=:]\\s*["\']?[a-zA-Z0-9]{20,}'
+    keywords:
+      - api_key
+      - api-key
+      - apikey
+      - api_token
+
+  - id: password-detection
+    name: Password Detection
+    description: Detects password-like strings
+    severity: high
+    enabled: true
+    keywords:
+      - password=
+      - passwd=
+      - pwd=
+      - "pass="
+      - credential
+
+  - id: private-key
+    name: Private Key
+    description: Detects private key headers
+    severity: critical
+    enabled: true
+    patterns:
+      - '-----BEGIN PRIVATE KEY-----'
+      - '-----BEGIN RSA PRIVATE KEY-----'
+      - '-----BEGIN EC PRIVATE KEY-----'
+      - '-----BEGIN OPENSSH PRIVATE KEY-----'
+
+  - id: credit-card
+    name: Credit Card Number
+    description: Detects potential credit card numbers
+    severity: critical
+    enabled: true
+    regex:
+      - '\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})\\b'
+
+  - id: openai-api-key
+    name: OpenAI API Key
+    description: Detects OpenAI API keys
+    severity: high
+    enabled: true
+    regex:
+      - 'sk-[a-zA-Z0-9]{48}'
+    keywords:
+      - OPENAI_API_KEY
+
+  - id: slack-token
+    name: Slack Token
+    description: Detects Slack API tokens
+    severity: high
+    enabled: true
+    regex:
+      - 'xox[baprs]-[a-zA-Z0-9-]+'
+
+  - id: stripe-key
+    name: Stripe API Key
+    description: Detects Stripe API keys
+    severity: critical
+    enabled: true
+    regex:
+      - 'sk_live_[a-zA-Z0-9]{24,}'
+      - 'sk_test_[a-zA-Z0-9]{24,}'

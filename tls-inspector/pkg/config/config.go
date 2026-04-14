@@ -1,0 +1,59 @@
+package config
+
+import (
+	"os"
+
+	"gopkg.in/yaml.v3"
+)
+
+type Config struct {
+	CaptureBytes     int      `yaml:"capture_bytes"`
+	RulesPath        string   `yaml:"rules_path"`
+	Output           string   `yaml:"output"`
+	OutputFile       string   `yaml:"output_file,omitempty"`
+	IncludeProcesses []string `yaml:"include_processes"`
+	LogLevel         string   `yaml:"log_level"`
+	BufferSize       int      `yaml:"buffer_size"`
+}
+
+func LoadConfig(path string) (*Config, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+
+	// Set defaults
+	if cfg.CaptureBytes == 0 {
+		cfg.CaptureBytes = 4096
+	}
+	if cfg.RulesPath == "" {
+		cfg.RulesPath = "./rules/default.yaml"
+	}
+	if cfg.Output == "" {
+		cfg.Output = "stdout"
+	}
+	if cfg.LogLevel == "" {
+		cfg.LogLevel = "info"
+	}
+	if cfg.BufferSize == 0 {
+		cfg.BufferSize = 256 * 1024
+	}
+
+	return &cfg, nil
+}
+
+func DefaultConfig() *Config {
+	return &Config{
+		CaptureBytes:     4096,
+		RulesPath:        "./rules/default.yaml",
+		Output:           "stdout",
+		IncludeProcesses: []string{"curl", "python", "python3"},
+		LogLevel:         "info",
+		BufferSize:       256 * 1024,
+	}
+}

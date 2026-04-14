@@ -1,0 +1,10 @@
+capture_bytes: 4096
+rules_path: ./rules/default.yaml
+output: stdout
+output_file: tls-events.json
+include_processes:
+  - curl
+  - python
+  - python3
+log_level: info
+buffer_size: 262144

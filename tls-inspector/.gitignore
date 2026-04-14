@@ -1,0 +1,32 @@
+# Binaries
+tls-inspector
+*.o
+*.a
+*.so
+
+# Go
+go.sum
+vendor/
+
+# eBPF
+*.ll
+*.bc
+
+# Output files
+tls-events.json
+*.log
+test-output.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+/tests/output/
