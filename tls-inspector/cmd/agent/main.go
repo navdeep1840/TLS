@@ -17,6 +17,7 @@ var (
 	ebpfObj    string
 	allTraffic bool
 	jsonOutput bool
+	serverURL  string
 )
 
 var rootCmd = &cobra.Command{
@@ -59,6 +60,7 @@ func init() {
 	runCmd.Flags().StringVarP(&ebpfObj, "ebpf-obj", "e", "./bpf/tls_probe.o", "Path to compiled eBPF object file")
 	runCmd.Flags().BoolVar(&allTraffic, "all-traffic", false, "Print all captured traffic, not just rule matches")
 	runCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output raw JSON instead of structured text")
+	runCmd.Flags().StringVar(&serverURL, "server-url", "", "HTTP(S) endpoint to POST detection events to (e.g. http://localhost:8080/events)")
 
 	rulesListCmd.Flags().StringVarP(&configPath, "config", "c", "./configs/config.yaml", "Path to config file")
 	rulesTestCmd.Flags().StringVarP(&configPath, "config", "c", "./configs/config.yaml", "Path to config file")
@@ -93,8 +95,15 @@ func runInspector(cmd *cobra.Command, args []string) error {
 		cfg = config.DefaultConfig()
 	}
 
+	if serverURL != "" {
+		cfg.ServerURL = serverURL
+	}
+
 	log.Printf("Config: capture_bytes=%d, rules=%s, output=%s\n",
 		cfg.CaptureBytes, cfg.RulesPath, cfg.Output)
+	if cfg.ServerURL != "" {
+		log.Printf("Remote endpoint: %s\n", cfg.ServerURL)
+	}
 
 	// Load detection rules
 	det, err := detector.NewDetectionEngine(cfg.RulesPath)

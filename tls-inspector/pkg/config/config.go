@@ -14,6 +14,7 @@ type Config struct {
 	IncludeProcesses []string `yaml:"include_processes"`
 	LogLevel         string   `yaml:"log_level"`
 	BufferSize       int      `yaml:"buffer_size"`
+	ServerURL        string   `yaml:"server_url,omitempty"`
 }
 
 func LoadConfig(path string) (*Config, error) {

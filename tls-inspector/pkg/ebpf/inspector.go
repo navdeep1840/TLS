@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -42,10 +43,10 @@ type TLSInspector struct {
 	detector     *detector.DetectionEngine
 	config       *config.Config
 	outputFile   *os.File
-	bootOffset   time.Duration      // wall-clock time at boot, for monotonic→wall conversion
-	AllTraffic   bool               // emit non-detection events too
-	JSONOutput   bool               // emit raw JSON instead of structured text
-	attachedInos map[uint64]struct{} // inode dedup: avoid double-attaching symlink targets
+	bootOffset   time.Duration          // wall-clock time at boot, for monotonic→wall conversion
+	AllTraffic   bool                   // emit non-detection events too
+	JSONOutput   bool                   // emit raw JSON instead of structured text
+	attachedInos map[uint64]struct{}    // inode dedup: avoid double-attaching symlink targets
 	recentAlerts map[alertKey]time.Time // alert dedup: suppress repeated matches within window
 }
 
@@ -354,8 +355,8 @@ func (t *TLSInspector) attachToLibrary(libPath string) error {
 	}
 
 	type probeSpec struct {
-		symbol  string
-		progKey string
+		symbol   string
+		progKey  string
 		retProbe bool
 	}
 	probes := []probeSpec{
@@ -575,6 +576,29 @@ func (t *TLSInspector) outputEvent(event *events.TLSEvent, detections []detector
 			t.outputFile.Write(jsonData)
 			t.outputFile.WriteString("\n")
 		}
+	}
+
+	// POST to remote server if configured (detections only, non-blocking)
+	if t.config.ServerURL != "" && len(detections) > 0 {
+		go t.postEvent(event)
+	}
+}
+
+var httpClient = &http.Client{Timeout: 5 * time.Second}
+
+func (t *TLSInspector) postEvent(event *events.TLSEvent) {
+	body, err := json.Marshal(event)
+	if err != nil {
+		return
+	}
+	resp, err := httpClient.Post(t.config.ServerURL, "application/json", bytes.NewReader(body))
+	if err != nil {
+		log.Printf("POST %s: %v", t.config.ServerURL, err)
+		return
+	}
+	resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		log.Printf("POST %s: server returned %s", t.config.ServerURL, resp.Status)
 	}
 }
 

@@ -6,6 +6,7 @@ require (
 	github.com/cilium/ebpf v0.12.3
 	gopkg.in/yaml.v3 v3.0.1
 	github.com/spf13/cobra v1.8.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
