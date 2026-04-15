@@ -10,7 +10,9 @@ BPF_OBJ = bpf/tls_probe.o
 BINARY = tls-inspector
 
 CFLAGS := -O2 -g -Wall -Werror
-BPF_CFLAGS := -target bpf -D__TARGET_ARCH_x86_64 -I/usr/include/x86_64-linux-gnu -I./bpf
+BPF_CFLAGS := -target bpf -mcpu=v2 -O2 -D__TARGET_ARCH_x86=1 \
+	-I/usr/include/x86_64-linux-gnu -I./bpf \
+	-I/usr/include -I/usr/local/include
 
 all: build
 
@@ -23,7 +25,8 @@ vmlinux:
 
 # Compile eBPF program
 $(BPF_OBJ): $(BPF_SOURCE)
-	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
+	$(CLANG) $(BPF_CFLAGS) -g -c $< -o $@
+	llvm-objcopy --remove-section=.BTF.ext --remove-section=.rel.BTF.ext $@ 2>/dev/null || true
 	@echo "Compiled eBPF program: $@"
 
 # Build Go binary

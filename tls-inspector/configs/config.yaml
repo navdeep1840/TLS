@@ -6,5 +6,7 @@ include_processes:
   - curl
   - python
   - python3
+  - node
+  - nodejs
 log_level: info
 buffer_size: 262144

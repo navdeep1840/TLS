@@ -15,6 +15,8 @@ import (
 var (
 	configPath string
 	ebpfObj    string
+	allTraffic bool
+	jsonOutput bool
 )
 
 var rootCmd = &cobra.Command{
@@ -55,6 +57,8 @@ var rulesTestCmd = &cobra.Command{
 func init() {
 	runCmd.Flags().StringVarP(&configPath, "config", "c", "./configs/config.yaml", "Path to config file")
 	runCmd.Flags().StringVarP(&ebpfObj, "ebpf-obj", "e", "./bpf/tls_probe.o", "Path to compiled eBPF object file")
+	runCmd.Flags().BoolVar(&allTraffic, "all-traffic", false, "Print all captured traffic, not just rule matches")
+	runCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output raw JSON instead of structured text")
 
 	rulesListCmd.Flags().StringVarP(&configPath, "config", "c", "./configs/config.yaml", "Path to config file")
 	rulesTestCmd.Flags().StringVarP(&configPath, "config", "c", "./configs/config.yaml", "Path to config file")
@@ -105,6 +109,8 @@ func runInspector(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("creating inspector: %w", err)
 	}
 	defer inspector.Close()
+	inspector.AllTraffic = allTraffic
+	inspector.JSONOutput = jsonOutput
 
 	// Load eBPF program
 	log.Printf("Loading eBPF program from %s\n", ebpfObj)

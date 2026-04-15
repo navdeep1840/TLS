@@ -15,11 +15,10 @@ rules:
     description: Detects AWS secret access key patterns
     severity: critical
     enabled: true
-    regex:
-      - '[A-Za-z0-9/+=]{40}'
     keywords:
       - AWS_SECRET_ACCESS_KEY
       - aws_secret_key
+      - aws_secret_access_key
 
   - id: gcp-api-key
     name: GCP API Key
@@ -82,8 +81,8 @@ rules:
     severity: medium
     enabled: true
     regex:
-      - '[aA][pP][iI][-_]?[kK][eE][yY].*[=:]\\s*["\']?[a-zA-Z0-9]{20,}'
-      - 'api[-_]?token.*[=:]\\s*["\']?[a-zA-Z0-9]{20,}'
+      - "[aA][pP][iI][-_]?[kK][eE][yY].*[=:]\\s*[\"']?[a-zA-Z0-9]{20,}"
+      - "api[-_]?token.*[=:]\\s*[\"']?[a-zA-Z0-9]{20,}"
     keywords:
       - api_key
       - api-key
@@ -92,7 +91,7 @@ rules:
 
   - id: password-detection
     name: Password Detection
-    description: Detects password-like strings
+    description: Detects password-like strings in request bodies
     severity: high
     enabled: true
     keywords:
@@ -100,7 +99,8 @@ rules:
       - passwd=
       - pwd=
       - "pass="
-      - credential
+      - "\"password\":"
+      - "\"passwd\":"
 
   - id: private-key
     name: Private Key
@@ -147,3 +147,170 @@ rules:
     regex:
       - 'sk_live_[a-zA-Z0-9]{24,}'
       - 'sk_test_[a-zA-Z0-9]{24,}'
+
+  - id: twilio-api-key
+    name: Twilio API Key
+    description: Detects Twilio API keys
+    severity: critical
+    enabled: true
+    regex:
+      - 'SK[0-9a-fA-F]{32}'
+    keywords:
+      - TWILIO_ACCOUNT_SID
+      - twilio_auth_token
+
+  - id: sendgrid-api-key
+    name: SendGrid API Key
+    description: Detects SendGrid API keys
+    severity: high
+    enabled: true
+    regex:
+      - 'SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}'
+    keywords:
+      - SENDGRID_API_KEY
+
+  - id: huggingface-token
+    name: Hugging Face Token
+    description: Detects Hugging Face API tokens
+    severity: high
+    enabled: true
+    regex:
+      - 'hf_[a-zA-Z]{34}'
+    keywords:
+      - HUGGINGFACE_TOKEN
+
+  - id: database-connection-string
+    name: Database Connection String
+    description: Detects database connection strings with credentials
+    severity: critical
+    enabled: true
+    regex:
+      - '(?:mysql|postgres|postgresql|mongodb|redis):\/\/[^:]+:[^@]+@[^\s]+'
+    keywords:
+      - DATABASE_URL
+      - DB_CONNECTION_STRING
+      - connection_string
+
+  - id: ssh-private-key
+    name: SSH Private Key
+    description: Detects SSH private key content
+    severity: critical
+    enabled: true
+    patterns:
+      - '-----BEGIN OPENSSH PRIVATE KEY-----'
+      - '-----BEGIN DSA PRIVATE KEY-----'
+      - '-----BEGIN EC PRIVATE KEY-----'
+      - '-----BEGIN RSA PRIVATE KEY-----'
+      - '-----BEGIN SSH2 PRIVATE KEY-----'
+
+  - id: generic-token
+    name: Generic Token
+    description: Detects generic token/secret patterns
+    severity: medium
+    enabled: true
+    regex:
+      - '[tT]oken\s*[=:]\s*[a-zA-Z0-9]{20,}'
+      - '[sS]ecret\s*[=:]\s*[a-zA-Z0-9]{20,}'
+      - '[aA]ccess[_-]?[kK]ey\s*[=:]\s*[a-zA-Z0-9]{20,}'
+    keywords:
+      - access_token
+      - auth_token
+      - secret_key
+
+  - id: url-with-credentials
+    name: URL with Embedded Credentials
+    description: Detects URLs with embedded username:password@host
+    severity: high
+    enabled: true
+    regex:
+      - 'https?:\/\/[^@:/\s]{3,}:[^@\s]{3,}@[^\s]+'
+
+  - id: jwt-secret
+    name: JWT Secret Key
+    description: Detects JWT secret key configurations
+    severity: high
+    enabled: true
+    keywords:
+      - JWT_SECRET
+      - jwt_secret
+      - JWT_SIGNING_KEY
+      - jwt_signing_key
+    patterns:
+      - 'jwt_secret='
+      - 'JWT_SECRET='
+
+  - id: oauth-secret
+    name: OAuth Secret
+    description: Detects OAuth client secrets and tokens
+    severity: high
+    enabled: true
+    keywords:
+      - OAUTH_CLIENT_SECRET
+      - oauth_client_secret
+      - OAUTH_TOKEN
+      - oauth_token
+      - refresh_token
+      - REFRESH_TOKEN
+
+  - id: sensitive-file-path
+    name: Sensitive File Path
+    description: Detects references to sensitive file paths
+    severity: medium
+    enabled: true
+    patterns:
+      - '/etc/shadow'
+      - '/etc/passwd'
+      - '.ssh/id_rsa'
+      - '.env'
+      - '.htpasswd'
+      - 'wp-config.php'
+    keywords:
+      - /etc/shadow
+      - /etc/passwd
+      - id_rsa
+
+  - id: base64-encoded-secret
+    name: Base64 Encoded Secret
+    description: Detects potential base64 encoded credentials in request bodies
+    severity: medium
+    enabled: true
+    regex:
+      - '[cC]redentials?\s*[=:]\s*[A-Za-z0-9+/]{40,}={0,2}'
+      - '[pP]assword\s*[=:]\s*[A-Za-z0-9+/]{20,}={0,2}'
+    keywords:
+      - base64_secret
+      - encoded_credentials
+
+  - id: webhook-url
+    name: Webhook URL
+    description: Detects webhook URLs with tokens
+    severity: high
+    enabled: true
+    regex:
+      - 'https://discord\.com/api/webhooks/[0-9]+/[a-zA-Z0-9_-]+'
+      - 'https://hooks\.slack\.com/services/T[a-zA-Z0-9]{8,}/B[a-zA-Z0-9]{8,}/[a-zA-Z0-9]{24,}'
+    keywords:
+      - webhook_url
+      - WEBHOOK_URL
+
+  - id: heroku-api-key
+    name: Heroku API Key
+    description: Detects Heroku API keys
+    severity: high
+    enabled: true
+    regex:
+      - '[hH]eroku.*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
+    keywords:
+      - HEROKU_API_KEY
+      - heroku_api_key
+
+  - id: mailgun-api-key
+    name: Mailgun API Key
+    description: Detects Mailgun API keys
+    severity: high
+    enabled: true
+    regex:
+      - 'key-[0-9a-zA-Z]{32}'
+    keywords:
+      - MAILGUN_API_KEY
+      - mailgun_api_key

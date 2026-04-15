@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -15,26 +16,23 @@ type ProcessMetadata struct {
 	Namespace   string
 }
 
+// containerIDRe matches a 64-hex-char container ID or the 12-char short form.
+var containerIDRe = regexp.MustCompile(`[a-f0-9]{64}|[a-f0-9]{12}`)
+
 func GetProcessMetadata(pid uint32) (*ProcessMetadata, error) {
 	meta := &ProcessMetadata{}
-	
-	// Get command line
-	cmdline, err := readCmdline(pid)
-	if err == nil {
+
+	if cmdline, err := readCmdline(pid); err == nil {
 		meta.Cmdline = cmdline
 	}
-	
-	// Get container info from cgroup
-	containerID, err := getContainerID(pid)
-	if err == nil {
-		meta.ContainerID = containerID
-		
-		// Try to get K8s metadata
+
+	if id := extractContainerID(pid); id != "" {
+		meta.ContainerID = id
 		podName, namespace := getK8sMetadata(pid)
 		meta.PodName = podName
 		meta.Namespace = namespace
 	}
-	
+
 	return meta, nil
 }
 
@@ -44,126 +42,117 @@ func readCmdline(pid uint32) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
-	// Replace null bytes with spaces
-	cmdline := strings.ReplaceAll(string(data), "\x00", " ")
-	return strings.TrimSpace(cmdline), nil
+	return strings.TrimSpace(strings.ReplaceAll(string(data), "\x00", " ")), nil
 }
 
-func getContainerID(pid uint32) (string, error) {
+// extractContainerID parses /proc/<pid>/cgroup for a container ID.
+// Handles Docker, containerd, cri-o, and cgroupv2 unified hierarchy.
+func extractContainerID(pid uint32) string {
 	path := fmt.Sprintf("/proc/%d/cgroup", pid)
-	file, err := os.Open(path)
+	f, err := os.Open(path)
 	if err != nil {
-		return "", err
+		return ""
 	}
-	defer file.Close()
-	
-	scanner := bufio.NewScanner(file)
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
-		
-		// Docker/containerd pattern: .../docker/<container_id>
-		if strings.Contains(line, "/docker/") {
-			parts := strings.Split(line, "/docker/")
-			if len(parts) > 1 {
-				containerID := strings.TrimSuffix(parts[1], ".scope")
-				if len(containerID) >= 12 {
-					return containerID[:12], nil
-				}
-			}
-		}
-		
-		// containerd pattern: .../cri-containerd-<container_id>
-		if strings.Contains(line, "cri-containerd-") {
-			parts := strings.Split(line, "cri-containerd-")
-			if len(parts) > 1 {
-				containerID := strings.TrimSuffix(parts[1], ".scope")
-				if len(containerID) >= 12 {
-					return containerID[:12], nil
-				}
-			}
-		}
-		
-		// K8s pod pattern: .../pod<pod_id>/
-		if strings.Contains(line, "/pod") {
-			parts := strings.Split(line, "/")
-			for _, part := range parts {
-				if strings.HasPrefix(part, "crio-") || strings.HasPrefix(part, "docker-") {
-					containerID := strings.TrimPrefix(part, "crio-")
-					containerID = strings.TrimPrefix(containerID, "docker-")
-					containerID = strings.TrimSuffix(containerID, ".scope")
-					if len(containerID) >= 12 {
-						return containerID[:12], nil
+
+		// Patterns found in cgroup entries:
+		//   .../docker/<64hex>
+		//   .../docker/<64hex>.scope
+		//   .../cri-containerd-<64hex>.scope
+		//   .../crio-<64hex>.scope
+		//   .../containerd/<namespace>/<64hex>
+		//   cgroupv2: 0::/<path> where path contains the 64-hex ID
+
+		// Fast path: look for known prefixes
+		for _, prefix := range []string{"/docker/", "cri-containerd-", "crio-", "/containerd/"} {
+			if idx := strings.Index(line, prefix); idx >= 0 {
+				fragment := line[idx+len(prefix):]
+				fragment = strings.TrimSuffix(fragment, ".scope")
+				// The container ID may be followed by more path components
+				fragment = strings.SplitN(fragment, "/", 2)[0]
+				if m := containerIDRe.FindString(fragment); m != "" {
+					if len(m) == 64 {
+						return m[:12]
 					}
+					return m
 				}
 			}
+		}
+
+		// Generic: find any 64-hex run in the line
+		if m := regexp.MustCompile(`[a-f0-9]{64}`).FindString(line); m != "" {
+			return m[:12]
 		}
 	}
-	
-	return "", fmt.Errorf("no container ID found")
+	return ""
 }
 
-func getK8sMetadata(pid uint32) (string, string) {
-	// Best effort K8s metadata extraction
-	// Look for environment variables in /proc/<pid>/environ
+func getK8sMetadata(pid uint32) (podName, namespace string) {
 	path := fmt.Sprintf("/proc/%d/environ", pid)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", ""
 	}
-	
-	envVars := strings.Split(string(data), "\x00")
-	var podName, namespace string
-	
-	for _, env := range envVars {
-		if strings.HasPrefix(env, "KUBERNETES_POD_NAME=") {
+
+	for _, env := range strings.Split(string(data), "\x00") {
+		switch {
+		case strings.HasPrefix(env, "KUBERNETES_POD_NAME="):
 			podName = strings.TrimPrefix(env, "KUBERNETES_POD_NAME=")
-		} else if strings.HasPrefix(env, "POD_NAME=") {
+		case strings.HasPrefix(env, "POD_NAME="):
 			podName = strings.TrimPrefix(env, "POD_NAME=")
-		} else if strings.HasPrefix(env, "KUBERNETES_NAMESPACE=") {
+		case strings.HasPrefix(env, "HOSTNAME=") && podName == "":
+			// K8s sets HOSTNAME to the pod name
+			podName = strings.TrimPrefix(env, "HOSTNAME=")
+		case strings.HasPrefix(env, "KUBERNETES_NAMESPACE="):
 			namespace = strings.TrimPrefix(env, "KUBERNETES_NAMESPACE=")
-		} else if strings.HasPrefix(env, "POD_NAMESPACE=") {
+		case strings.HasPrefix(env, "POD_NAMESPACE="):
 			namespace = strings.TrimPrefix(env, "POD_NAMESPACE=")
 		}
 	}
-	
-	return podName, namespace
+	return
 }
 
+// FindLibraryPath searches /proc/<pid>/maps for a library matching libName,
+// then falls back to well-known filesystem paths.
 func FindLibraryPath(pid uint32, libName string) (string, error) {
 	path := fmt.Sprintf("/proc/%d/maps", pid)
-	file, err := os.Open(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
-	
-	scanner := bufio.NewScanner(file)
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, libName) && strings.HasSuffix(line, ".so") ||
-			strings.Contains(line, libName+".") {
-			parts := strings.Fields(line)
-			if len(parts) >= 6 {
-				return parts[5], nil
-			}
+		if !strings.Contains(line, libName) {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 6 {
+			continue
+		}
+		p := fields[5]
+		if strings.HasSuffix(p, ".so") || strings.Contains(p, ".so.") {
+			return p, nil
 		}
 	}
-	
-	// Try standard library paths
-	standardPaths := []string{
-		"/usr/lib/x86_64-linux-gnu/" + libName,
-		"/usr/lib64/" + libName,
-		"/usr/lib/" + libName,
-		"/lib/x86_64-linux-gnu/" + libName,
-	}
-	
-	for _, p := range standardPaths {
-		matches, _ := filepath.Glob(p + "*")
-		if len(matches) > 0 {
+
+	// Fallback: glob standard locations
+	for _, pattern := range []string{
+		"/usr/lib/x86_64-linux-gnu/" + libName + "*.so*",
+		"/usr/lib64/" + libName + "*.so*",
+		"/usr/lib/" + libName + "*.so*",
+		"/lib/x86_64-linux-gnu/" + libName + "*.so*",
+	} {
+		if matches, _ := filepath.Glob(pattern); len(matches) > 0 {
 			return matches[0], nil
 		}
 	}
-	
+
 	return "", fmt.Errorf("library %s not found for pid %d", libName, pid)
 }
