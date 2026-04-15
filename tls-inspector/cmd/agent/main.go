@@ -13,11 +13,14 @@ import (
 )
 
 var (
-	configPath string
-	ebpfObj    string
-	allTraffic bool
-	jsonOutput bool
-	serverURL  string
+	configPath  string
+	ebpfObj     string
+	allTraffic  bool
+	jsonOutput  bool
+	serverURL   string
+	apiKey      string
+	projectName string
+	usecase     string
 )
 
 var rootCmd = &cobra.Command{
@@ -60,7 +63,10 @@ func init() {
 	runCmd.Flags().StringVarP(&ebpfObj, "ebpf-obj", "e", "./bpf/tls_probe.o", "Path to compiled eBPF object file")
 	runCmd.Flags().BoolVar(&allTraffic, "all-traffic", false, "Print all captured traffic, not just rule matches")
 	runCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output raw JSON instead of structured text")
-	runCmd.Flags().StringVar(&serverURL, "server-url", "", "HTTP(S) endpoint to POST detection events to (e.g. http://localhost:8080/events)")
+	runCmd.Flags().StringVar(&serverURL, "server-url", "", "HTTP(S) endpoint to POST detection events to")
+	runCmd.Flags().StringVar(&apiKey, "api-key", "", "API key sent as x-api-key header with every POST")
+	runCmd.Flags().StringVar(&projectName, "project-name", "", "Project name to tag in every event sent to the server")
+	runCmd.Flags().StringVar(&usecase, "usecase", "", "Use-case label to tag in every event sent to the server")
 
 	rulesListCmd.Flags().StringVarP(&configPath, "config", "c", "./configs/config.yaml", "Path to config file")
 	rulesTestCmd.Flags().StringVarP(&configPath, "config", "c", "./configs/config.yaml", "Path to config file")
@@ -97,6 +103,15 @@ func runInspector(cmd *cobra.Command, args []string) error {
 
 	if serverURL != "" {
 		cfg.ServerURL = serverURL
+	}
+	if apiKey != "" {
+		cfg.APIKey = apiKey
+	}
+	if projectName != "" {
+		cfg.ProjectName = projectName
+	}
+	if usecase != "" {
+		cfg.Usecase = usecase
 	}
 
 	log.Printf("Config: capture_bytes=%d, rules=%s, output=%s\n",

@@ -15,6 +15,9 @@ type Config struct {
 	LogLevel         string   `yaml:"log_level"`
 	BufferSize       int      `yaml:"buffer_size"`
 	ServerURL        string   `yaml:"server_url,omitempty"`
+	APIKey           string   `yaml:"api_key,omitempty"`
+	ProjectName      string   `yaml:"project_name,omitempty"`
+	Usecase          string   `yaml:"usecase,omitempty"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -53,7 +56,7 @@ func DefaultConfig() *Config {
 		CaptureBytes:     4096,
 		RulesPath:        "./rules/default.yaml",
 		Output:           "stdout",
-		IncludeProcesses: []string{"curl", "python", "python3"},
+		IncludeProcesses: []string{"curl", "python", "python3", "node", "nodejs", "wget", "java", "ruby", "go", "php", "openssl", "httpie", "http"},
 		LogLevel:         "info",
 		BufferSize:       256 * 1024,
 	}

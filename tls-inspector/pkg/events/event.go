@@ -3,6 +3,8 @@ package events
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/emergent/tls-inspector/pkg/ipinfo"
 )
 
 type TLSEvent struct {
@@ -20,8 +22,14 @@ type TLSEvent struct {
 	Direction        string    `json:"direction"`
 	DataLen          uint32    `json:"data_len"`
 	PlaintextPreview string    `json:"plaintext_preview"`
-	Detections       []string  `json:"detections,omitempty"`
-	Severity         string    `json:"severity,omitempty"`
+	Detections       []string          `json:"detections,omitempty"`
+	Severity         string            `json:"severity,omitempty"`
+	ProjectName      string            `json:"project_name,omitempty"`
+	Usecase          string            `json:"usecase,omitempty"`
+	RemoteIPs        []string          `json:"remote_ips,omitempty"`
+	IPDetails        []*ipinfo.IPInfo  `json:"ip_details,omitempty"`
+	ExecPath         string            `json:"exec_path,omitempty"`
+	ScriptPath       string            `json:"script_path,omitempty"`
 }
 
 // RawTLSEvent must exactly match the C struct tls_event layout including padding:

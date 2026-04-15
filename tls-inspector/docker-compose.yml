@@ -1,0 +1,42 @@
+services:
+  tls-inspector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tls-inspector:latest
+    container_name: tls-inspector
+
+    # eBPF requires elevated privileges to load programs and attach uprobes.
+    privileged: true
+
+    # Share the host PID namespace so the agent can see all host processes
+    # via /proc and attach uprobes to their libssl mappings.
+    pid: host
+
+    # Share the host network namespace so captured traffic metadata
+    # (source/dest IPs, ports) reflects real host connections.
+    network_mode: host
+
+    volumes:
+      # Kernel BTF — required for CO-RE type resolution
+      - /sys/kernel/btf/vmlinux:/sys/kernel/btf/vmlinux:ro
+
+      # Full /sys so BPF syscalls (bpf(), perf_event_open) work correctly
+      - /sys/fs/bpf:/sys/fs/bpf
+
+      # Host /proc — process discovery, /proc/*/maps, /proc/*/comm, /proc/*/exe
+      - /proc:/proc
+
+      # Host /etc — ld.so.conf.d for library path discovery
+      - /etc/ld.so.conf.d:/etc/ld.so.conf.d:ro
+
+      # Persist detection events on the host
+      - ./tls-events.json:/app/tls-events.json
+
+    restart: unless-stopped
+
+    # Pass flags via environment or override CMD directly:
+    #   docker compose run tls-inspector run \
+    #     --server-url http://my-server:8080/events \
+    #     --project-name my-project \
+    #     --usecase secret-detection

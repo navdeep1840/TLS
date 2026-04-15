@@ -8,5 +8,6 @@ include_processes:
   - python3
   - node
   - nodejs
+  - wget
 log_level: info
 buffer_size: 262144
